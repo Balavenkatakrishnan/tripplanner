@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getDB, Trip, TravelDetail, Place, Hotel, IdProof, SyncAction } from "@/lib/db";
 import { pushToServer } from "@/lib/api";
+import { SYNC_COMPLETE_EVENT } from "@/hooks/useSync";
 
 export function useTripDetails(tripId: string) {
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -33,6 +34,12 @@ export function useTripDetails(tripId: string) {
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    const onSync = () => loadData();
+    window.addEventListener(SYNC_COMPLETE_EVENT, onSync);
+    return () => window.removeEventListener(SYNC_COMPLETE_EVENT, onSync);
   }, [loadData]);
 
   const queueAction = async (type: 'CREATE' | 'UPDATE' | 'DELETE', table: any, payload: any) => {

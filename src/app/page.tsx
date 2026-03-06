@@ -3,13 +3,15 @@
 import { useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { LogOut, Plus, MapPin, Calendar, Bell } from "lucide-react";
+import { LogOut, Plus, MapPin, Calendar, Bell, RefreshCw } from "lucide-react";
 import { useTrips } from "@/hooks/useTrips";
+import { useSyncContext } from "@/hooks/useSync";
 import { useNotifications } from "@/hooks/useNotifications";
 
 export default function Home() {
   const { user, isLoading, logout } = useAuth();
   const { trips, loading: tripsLoading } = useTrips();
+  const syncContext = useSyncContext();
   const { permission, requestPermission } = useNotifications();
   const router = useRouter();
 
@@ -40,6 +42,19 @@ export default function Home() {
             <span className="text-sm bg-blue-700 px-3 py-1 rounded-full border border-blue-500">
               {user.role === "organizer" ? user.username : "User: " + user.phoneNumber}
             </span>
+            <button
+              onClick={() => syncContext?.sync()}
+              disabled={syncContext?.isSyncing}
+              className="p-2 hover:bg-blue-700 rounded-full transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+              aria-label="Sync"
+              title="Refresh from server"
+            >
+              {syncContext?.isSyncing ? (
+                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <RefreshCw className="h-5 w-5" />
+              )}
+            </button>
             <button 
               onClick={logout}
               className="p-2 hover:bg-blue-700 rounded-full transition-colors"

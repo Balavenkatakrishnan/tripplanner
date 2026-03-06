@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
 
   useEffect(() => {
     if (!isLoading && user) {
@@ -24,25 +25,39 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoggingIn(true);
 
-    if (role === "organizer") {
-      if (!username || !password) {
-        setError("Please enter both username and password");
-        return;
+    try {
+      if (role === "organizer") {
+        if (!username || !password) {
+          setError("Please enter both username and password");
+          return;
+        }
+        const result = await loginAsOrganizer(username, password);
+        if (result !== true) setError(typeof result === 'string' ? result : "Invalid credentials");
+      } else {
+        if (phone.length < 10) {
+          setError("Please enter a valid phone number (min 10 digits)");
+          return;
+        }
+        const result = await loginAsUser(phone);
+        if (result !== true) setError(typeof result === 'string' ? result : "Invalid phone number");
       }
-      const result = await loginAsOrganizer(username, password);
-      if (result !== true) setError(typeof result === 'string' ? result : "Invalid credentials");
-    } else {
-      if (phone.length < 10) {
-        setError("Please enter a valid phone number (min 10 digits)");
-        return;
-      }
-      const result = await loginAsUser(phone);
-      if (result !== true) setError(typeof result === 'string' ? result : "Invalid phone number");
+    } finally {
+      setLoggingIn(false);
     }
   };
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-sm font-medium text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -154,9 +169,17 @@ export default function LoginPage() {
             <div className="pt-2">
               <button
                 type="submit"
-                className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-lg shadow-md text-base font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                disabled={loggingIn}
+                className="w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-lg shadow-md text-base font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Sign in
+                {loggingIn ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  "Sign in"
+                )}
               </button>
             </div>
           </form>

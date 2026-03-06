@@ -7,18 +7,30 @@ const SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
 
 type TableName = "trips" | "travelDetails" | "places" | "hotels" | "idProofs";
 
-/** GET /api/trips?phone=1234567890 - Returns trips and related data where the phone is in travelerPhones */
+const EMPTY = { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [] };
+
+/**
+ * GET /api/trips
+ * - role=user&phone=1234567890 → traveler's trips
+ * - role=organizer&identifier=admin@bvk.com → organizer's trips
+ */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
+    const role = searchParams.get("role");
     const phone = normalizePhone(searchParams.get("phone") || "");
-    if (!phone || phone.length < 10) {
-      return NextResponse.json({ trips: [], travelDetails: [], places: [], hotels: [], idProofs: [] });
-    }
+    const identifier = searchParams.get("identifier") || "";
 
     const { GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_SHEET_ID } = process.env;
     if (!GOOGLE_CLIENT_EMAIL || !GOOGLE_PRIVATE_KEY || !GOOGLE_SHEET_ID) {
-      return NextResponse.json({ trips: [], travelDetails: [], places: [], hotels: [], idProofs: [] });
+      return NextResponse.json(EMPTY);
+    }
+
+    // Validate: need either traveler (phone) or organizer (identifier)
+    const isTraveler = role === "user" && phone.length >= 10;
+    const isOrganizer = role === "organizer" && identifier.length > 0;
+    if (!isTraveler && !isOrganizer) {
+      return NextResponse.json(EMPTY);
     }
 
     const auth = new google.auth.GoogleAuth({
@@ -70,8 +82,11 @@ export async function GET(req: Request) {
     }
 
     const trips = Array.from(tripMap.values()).filter((t) => {
-      const phones = (t.travelerPhones || []).map((p) => normalizePhone(p));
-      return phones.includes(phone);
+      if (isTraveler) {
+        const phones = (t.travelerPhones || []).map((p) => normalizePhone(p));
+        return phones.includes(phone);
+      }
+      return t.createdBy === identifier;
     });
 
     trips.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));

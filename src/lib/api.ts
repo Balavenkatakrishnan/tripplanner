@@ -11,10 +11,13 @@ export interface TripsPullResponse {
   idProofs: import("./db").IdProof[];
 }
 
-/** Fetch trips and related data from server for a traveler (by phone). Used when local DB is empty (e.g. new device). */
-export const fetchTripsForTraveler = async (phone: string): Promise<TripsPullResponse> => {
+/** Fetch all trips and related data from server. Works for both organizer and traveler. */
+export const fetchSyncData = async (role: "organizer" | "user", identifier: string): Promise<TripsPullResponse> => {
   try {
-    const res = await fetch(`/api/trips?phone=${encodeURIComponent(phone)}`, { method: "GET" });
+    const params = role === "organizer"
+      ? `role=organizer&identifier=${encodeURIComponent(identifier)}`
+      : `role=user&phone=${encodeURIComponent(identifier)}`;
+    const res = await fetch(`/api/trips?${params}`, { method: "GET" });
     if (!res.ok) return { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [] };
     const data = await res.json();
     return {
@@ -28,6 +31,9 @@ export const fetchTripsForTraveler = async (phone: string): Promise<TripsPullRes
     return { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [] };
   }
 };
+
+/** @deprecated Use fetchSyncData instead */
+export const fetchTripsForTraveler = async (phone: string) => fetchSyncData("user", phone);
 
 export const fetchFromServer = async (endpoint: string, params?: Record<string, string>) => {
   // If no real endpoint provided, mock success for development

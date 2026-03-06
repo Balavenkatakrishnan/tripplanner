@@ -3,7 +3,8 @@ import { getDB, Trip, SyncAction } from "@/lib/db";
 import { useAuth } from "@/context/AuthContext";
 import { pushToServer } from "@/lib/api";
 import { normalizePhone } from "@/lib/phone";
-import { fetchTripsForTraveler } from "@/lib/api";
+import { fetchSyncData } from "@/lib/api";
+import { SYNC_COMPLETE_EVENT } from "@/hooks/useSync";
 
 export function useTrips() {
   const { user } = useAuth();
@@ -37,7 +38,7 @@ export function useTrips() {
         // If no local trips, try to pull from server (multi-device)
         if (localTrips.length === 0) {
           try {
-            const data = await fetchTripsForTraveler(userPhone);
+            const data = await fetchSyncData("user", userPhone);
             if (data.trips.length > 0) {
               for (const t of data.trips) await db.put("trips", t);
               for (const td of data.travelDetails) await db.put("travelDetails", td);
@@ -61,6 +62,12 @@ export function useTrips() {
 
   useEffect(() => {
     loadTrips();
+  }, [loadTrips]);
+
+  useEffect(() => {
+    const onSync = () => loadTrips();
+    window.addEventListener(SYNC_COMPLETE_EVENT, onSync);
+    return () => window.removeEventListener(SYNC_COMPLETE_EVENT, onSync);
   }, [loadTrips]);
 
   const addTrip = async (trip: Omit<Trip, "id" | "createdAt" | "createdBy">) => {

@@ -4,10 +4,11 @@ import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTripDetails } from "@/hooks/useTripDetails";
 import { useAuth } from "@/context/AuthContext";
-import { ArrowLeft, Plus, MapPin, Plane, Car, Train, Bike, Hotel as HotelIcon, FileText, Calendar, Clock, Users, Phone } from "lucide-react";
+import { ArrowLeft, Plus, MapPin, Plane, Car, Train, Bike, Hotel as HotelIcon, FileText, Calendar, Clock, Users, Phone, RefreshCw } from "lucide-react";
 import { getDB, SyncAction } from "@/lib/db";
 import { pushToServer } from "@/lib/api";
 import { normalizePhone } from "@/lib/phone";
+import { useSyncContext } from "@/hooks/useSync";
 
 export default function TripDetailsPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function TripDetailsPage() {
   const { user } = useAuth();
   
   const { trip, travels, places, hotels, idProofs, loading, addTravel, addPlace, addHotel, addIdProof, refresh } = useTripDetails(id);
+  const syncContext = useSyncContext();
 
   const [activeTab, setActiveTab] = useState<"itinerary" | "docs" | "travelers">("itinerary");
   const [showAddForm, setShowAddForm] = useState<"travel" | "place" | "hotel" | "doc" | "traveler" | null>(null);
@@ -117,8 +119,21 @@ export default function TripDetailsPage() {
       <header className="bg-blue-600 text-white shadow-md sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.push("/")} className="p-1 hover:bg-blue-700 rounded-full">
+            <button onClick={() => router.push("/")} className="p-1 hover:bg-blue-700 rounded-full" aria-label="Back">
               <ArrowLeft className="h-6 w-6" />
+            </button>
+            <button
+              onClick={() => syncContext?.sync()}
+              disabled={syncContext?.isSyncing}
+              className="p-1 hover:bg-blue-700 rounded-full disabled:opacity-70 disabled:cursor-not-allowed"
+              aria-label="Sync"
+              title="Refresh from server"
+            >
+              {syncContext?.isSyncing ? (
+                <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <RefreshCw className="h-6 w-6" />
+              )}
             </button>
             <div>
               <h1 className="text-xl font-bold leading-tight">{trip.name}</h1>
@@ -182,7 +197,7 @@ export default function TripDetailsPage() {
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm mb-6 animate-in fade-in slide-in-from-top-4">
             <h3 className="font-bold text-gray-800 mb-4 capitalize">Add {showAddForm}</h3>
             <form onSubmit={handleAddSubmit} className="space-y-4">
-              {showAddForm !== 'doc' && (
+              {showAddForm !== 'doc' && showAddForm !== 'traveler' && (
                 <div>
                   <label className="block text-sm font-bold text-gray-900">Date</label>
                   <input type="date" required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm font-medium text-gray-900 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" value={fDate} onChange={e=>setFDate(e.target.value)} />
