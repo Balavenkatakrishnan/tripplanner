@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { normalizePhone } from "@/lib/phone";
 
 export type Role = "organizer" | "user" | null;
 
@@ -64,15 +65,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const loginAsUser = async (phoneNumber: string) => {
     setIsLoading(true);
+    const normalized = normalizePhone(phoneNumber);
+    if (normalized.length < 10) {
+      setIsLoading(false);
+      return "Please enter a valid phone number (min 10 digits)";
+    }
     try {
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'user', identifier: phoneNumber })
+        body: JSON.stringify({ role: 'user', identifier: normalized })
       });
       const data = await res.json();
       if (res.ok && data.success && data.user) {
-        const newUser: User = { id: `user-${phoneNumber}`, ...data.user };
+        const newUser: User = { id: `user-${normalized}`, phoneNumber: normalized, ...data.user };
         setUser(newUser);
         localStorage.setItem("trip_planner_user", JSON.stringify(newUser));
         setIsLoading(false);

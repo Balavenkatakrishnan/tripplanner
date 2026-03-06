@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft, Plus, MapPin, Plane, Car, Train, Bike, Hotel as HotelIcon, FileText, Calendar, Clock, Users, Phone } from "lucide-react";
 import { getDB, SyncAction } from "@/lib/db";
 import { pushToServer } from "@/lib/api";
+import { normalizePhone } from "@/lib/phone";
 
 export default function TripDetailsPage() {
   const router = useRouter();
@@ -30,9 +31,10 @@ export default function TripDetailsPage() {
   const [fOrigin, setFOrigin] = useState("");
   const [fDest, setFDest] = useState("");
   const [fLink, setFLink] = useState("");
+  const [fTravelerPhone, setFTravelerPhone] = useState("");
 
   const resetForm = () => {
-    setFDate(""); setFName(""); setFDep(""); setFArr(""); setFOrigin(""); setFDest(""); setFLink(""); setShowAddForm(null);
+    setFDate(""); setFName(""); setFDep(""); setFArr(""); setFOrigin(""); setFDest(""); setFLink(""); setFTravelerPhone(""); setShowAddForm(null);
   };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
@@ -46,27 +48,34 @@ export default function TripDetailsPage() {
     } else if (showAddForm === "doc") {
       await addIdProof({ name: fName, link: fLink });
     } else if (showAddForm === "traveler") {
-      // Add a traveler to the trip
-      if (trip && fLink) {
+      const phone = normalizePhone(fTravelerPhone);
+      if (trip && phone.length >= 10) {
+        const existing = (trip.travelerPhones || []).map(normalizePhone);
+        if (existing.includes(phone)) {
+          alert("This phone number is already added to the trip.");
+          resetForm();
+          return;
+        }
         const db = await getDB();
         if (db) {
-          const updatedTrip = { ...trip, travelerPhones: [...(trip.travelerPhones || []), fLink] };
+          const normalizedPhones = (trip.travelerPhones || []).map(normalizePhone).filter(Boolean);
+          const updatedTrip = { ...trip, travelerPhones: [...new Set([...normalizedPhones, phone])] };
           await db.put('trips', updatedTrip);
-          
+
           const action: SyncAction = {
             id: crypto.randomUUID(), type: 'UPDATE', table: 'trips', payload: updatedTrip, timestamp: Date.now()
           };
           const userAction: SyncAction = {
-            id: crypto.randomUUID(), type: 'CREATE', table: 'Users' as any, payload: { role: 'user', identifier: fLink }, timestamp: Date.now()
+            id: crypto.randomUUID(), type: 'CREATE', table: 'Users' as any, payload: { role: 'user', identifier: phone }, timestamp: Date.now()
           };
           await db.put('syncQueue', action);
           await db.put('syncQueue', userAction);
           try {
-             await pushToServer([action, userAction]);
-             await db.delete('syncQueue', action.id);
-             await db.delete('syncQueue', userAction.id);
+            await pushToServer([action, userAction]);
+            await db.delete('syncQueue', action.id);
+            await db.delete('syncQueue', userAction.id);
           } catch {}
-          refresh(); // Reload trip data to get the new phone array
+          refresh();
         }
       }
     }
@@ -196,8 +205,8 @@ export default function TripDetailsPage() {
               {showAddForm === 'traveler' && (
                 <div>
                   <label className="block text-sm font-bold text-gray-900">Traveler Phone Number</label>
-                  <input type="tel" required placeholder="e.g. 1234567890" className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm font-medium text-gray-900 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-gray-400" value={fLink} onChange={e=>setFLink(e.target.value.replace(/\D/g, ''))} />
-                  <p className="text-xs text-gray-600 mt-2 font-medium">This exact phone number will have viewing access to the trip itinerary.</p>
+                  <input type="tel" required placeholder="e.g. 1234567890" minLength={10} className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm font-medium text-gray-900 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-gray-400" value={fTravelerPhone} onChange={e=>setFTravelerPhone(e.target.value.replace(/\D/g, ''))} />
+                  <p className="text-xs text-gray-600 mt-2 font-medium">Must be 10+ digits. The traveler logs in with this same number to see the trip.</p>
                 </div>
               )}
 
@@ -206,7 +215,7 @@ export default function TripDetailsPage() {
                   <div>
                     <label className="block text-sm font-bold text-gray-900">Mode</label>
                     <select className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm font-medium text-gray-900 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" value={fMode} onChange={e=>setFMode(e.target.value as any)}>
-                      <option value="flight">Flight</option>
+                      <option value="plane">Flight</option>
                       <option value="train">Train</option>
                       <option value="car">Car</option>
                       <option value="bike">Bike</option>

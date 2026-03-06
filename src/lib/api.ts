@@ -1,7 +1,33 @@
-import { SyncAction } from "./db";
+import { SyncAction, Trip } from "./db";
 
 // Use the local Next.js API Route for Google Sheets Integration
 const API_URL = "/api/sync";
+
+export interface TripsPullResponse {
+  trips: Trip[];
+  travelDetails: import("./db").TravelDetail[];
+  places: import("./db").Place[];
+  hotels: import("./db").Hotel[];
+  idProofs: import("./db").IdProof[];
+}
+
+/** Fetch trips and related data from server for a traveler (by phone). Used when local DB is empty (e.g. new device). */
+export const fetchTripsForTraveler = async (phone: string): Promise<TripsPullResponse> => {
+  try {
+    const res = await fetch(`/api/trips?phone=${encodeURIComponent(phone)}`, { method: "GET" });
+    if (!res.ok) return { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [] };
+    const data = await res.json();
+    return {
+      trips: Array.isArray(data.trips) ? data.trips : [],
+      travelDetails: Array.isArray(data.travelDetails) ? data.travelDetails : [],
+      places: Array.isArray(data.places) ? data.places : [],
+      hotels: Array.isArray(data.hotels) ? data.hotels : [],
+      idProofs: Array.isArray(data.idProofs) ? data.idProofs : [],
+    };
+  } catch {
+    return { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [] };
+  }
+};
 
 export const fetchFromServer = async (endpoint: string, params?: Record<string, string>) => {
   // If no real endpoint provided, mock success for development

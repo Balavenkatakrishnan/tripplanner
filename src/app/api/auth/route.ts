@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { normalizePhone } from '@/lib/phone';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
@@ -13,7 +14,10 @@ export async function POST(req: Request) {
       if (role === 'organizer' && identifier === 'admin@bvk.com' && password === '123') {
         return NextResponse.json({ success: true, user: { role: 'organizer', username: identifier } });
       } else if (role === 'user') {
-        return NextResponse.json({ success: true, user: { role: 'user', phoneNumber: identifier } });
+        const normId = normalizePhone(identifier);
+        if (normId.length >= 10) {
+          return NextResponse.json({ success: true, user: { role: 'user', phoneNumber: normId } });
+        }
       }
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
@@ -69,10 +73,13 @@ export async function POST(req: Request) {
     } 
     
     if (role === 'user') {
-      // Check if user is in the sheet
-      const userRow = rows.find(r => r[0] === 'user' && r[1] === identifier);
+      const normId = normalizePhone(identifier);
+      if (normId.length < 10) {
+        return NextResponse.json({ error: 'Please enter a valid phone number (min 10 digits)' }, { status: 400 });
+      }
+      const userRow = rows.find(r => r[0] === 'user' && normalizePhone(r[1]) === normId);
       if (userRow) {
-        return NextResponse.json({ success: true, user: { role: 'user', phoneNumber: identifier } });
+        return NextResponse.json({ success: true, user: { role: 'user', phoneNumber: normId } });
       }
       return NextResponse.json({ error: 'Phone number not authorized. An organizer must invite you first.' }, { status: 401 });
     }
