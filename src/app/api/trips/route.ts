@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
-import { Trip, TravelDetail, Place, Hotel, IdProof } from "@/lib/db";
+import { Trip, TravelDetail, Place, Hotel, IdProof, Expense } from "@/lib/db";
 import { normalizePhone } from "@/lib/phone";
 
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
 
-type TableName = "trips" | "travelDetails" | "places" | "hotels" | "idProofs";
+type TableName = "trips" | "travelDetails" | "places" | "hotels" | "idProofs" | "expenses";
 
-const EMPTY = { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [] };
+const EMPTY = { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [], expenses: [] };
 
 /**
  * GET /api/trips
@@ -53,14 +53,16 @@ export async function GET(req: Request) {
     const placesMap = new Map<string, Place>();
     const hotelsMap = new Map<string, Hotel>();
     const idProofsMap = new Map<string, IdProof>();
+    const expensesMap = new Map<string, Expense>();
 
-    const tables: TableName[] = ["trips", "travelDetails", "places", "hotels", "idProofs"];
+    const tables: TableName[] = ["trips", "travelDetails", "places", "hotels", "idProofs", "expenses"];
     const mapByTable = {
       trips: tripMap,
       travelDetails: travelDetailsMap,
       places: placesMap,
       hotels: hotelsMap,
       idProofs: idProofsMap,
+      expenses: expensesMap,
     } as const;
 
     for (const row of rows) {
@@ -96,16 +98,17 @@ export async function GET(req: Request) {
     const places = Array.from(placesMap.values()).filter((p) => tripIds.has(p.tripId));
     const hotels = Array.from(hotelsMap.values()).filter((h) => tripIds.has(h.tripId));
     const idProofs = Array.from(idProofsMap.values()).filter((i) => tripIds.has(i.tripId));
+    const expenses = Array.from(expensesMap.values()).filter((e) => tripIds.has(e.tripId));
 
-    return NextResponse.json({
-      trips,
-      travelDetails,
-      places,
-      hotels,
-      idProofs,
-    });
+    return NextResponse.json(
+      { trips, travelDetails, places, hotels, idProofs, expenses },
+      { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
+    );
   } catch (error) {
     console.error("Trips API error", error);
-    return NextResponse.json({ trips: [], travelDetails: [], places: [], hotels: [], idProofs: [] });
+    return NextResponse.json(
+      { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [], expenses: [] },
+      { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
+    );
   }
 }

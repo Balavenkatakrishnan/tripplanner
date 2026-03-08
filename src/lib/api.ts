@@ -9,6 +9,7 @@ export interface TripsPullResponse {
   places: import("./db").Place[];
   hotels: import("./db").Hotel[];
   idProofs: import("./db").IdProof[];
+  expenses: import("./db").Expense[];
 }
 
 /** Fetch all trips and related data from server. Works for both organizer and traveler. */
@@ -17,8 +18,8 @@ export const fetchSyncData = async (role: "organizer" | "user", identifier: stri
     const params = role === "organizer"
       ? `role=organizer&identifier=${encodeURIComponent(identifier)}`
       : `role=user&phone=${encodeURIComponent(identifier)}`;
-    const res = await fetch(`/api/trips?${params}`, { method: "GET" });
-    if (!res.ok) return { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [] };
+    const res = await fetch(`/api/trips?${params}`, { method: "GET", cache: "no-store", headers: { "Cache-Control": "no-cache" } });
+    if (!res.ok) return { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [], expenses: [] };
     const data = await res.json();
     return {
       trips: Array.isArray(data.trips) ? data.trips : [],
@@ -26,9 +27,10 @@ export const fetchSyncData = async (role: "organizer" | "user", identifier: stri
       places: Array.isArray(data.places) ? data.places : [],
       hotels: Array.isArray(data.hotels) ? data.hotels : [],
       idProofs: Array.isArray(data.idProofs) ? data.idProofs : [],
+      expenses: Array.isArray(data.expenses) ? data.expenses : [],
     };
   } catch {
-    return { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [] };
+    return { trips: [], travelDetails: [], places: [], hotels: [], idProofs: [], expenses: [] };
   }
 };
 

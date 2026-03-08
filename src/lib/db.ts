@@ -7,37 +7,61 @@ export interface Trip {
   endDate: string;
   createdBy: string;
   travelerPhones: string[]; // array of phone numbers allowed to view
+  travelerNames?: Record<string, string>; // phone -> display name
   createdAt: number;
 }
 
 export interface TravelDetail {
   id: string;
   tripId: string;
-  date: string; // ISO string 
+  date: string;
+  dateTo?: string;
   mode: 'bike' | 'car' | 'train' | 'plane';
-  departureTime: string; // ISO 
+  departureTime: string; // ISO datetime or HH:mm
   arrivalTime: string;
   origin: string;
   destination: string;
+  bookingNeeded?: boolean;
+  isBooked?: boolean;
 }
 
 export interface Place {
   id: string;
   tripId: string;
   date: string;
+  dateTo?: string;
   name: string;
   location?: string;
   notes?: string;
+  visitTime?: string; // HH:mm or ISO
+  bookingNeeded?: boolean;
+  isBooked?: boolean;
 }
 
 export interface Hotel {
   id: string;
   tripId: string;
   date: string;
+  dateTo?: string;
   name: string;
   address?: string;
   checkInTime?: string;
   checkOutTime?: string;
+  bookingNeeded?: boolean;
+  isBooked?: boolean;
+}
+
+export interface Expense {
+  id: string;
+  tripId: string;
+  addedBy: string;
+  description: string;
+  amount: number;
+  currency: string;
+  splitType: 'equal' | 'custom';
+  splits: { identifier: string; amount: number }[];
+  date?: string; // date of expense (YYYY-MM-DD)
+  createdAt: number;
 }
 
 export interface IdProof {
@@ -48,9 +72,9 @@ export interface IdProof {
 }
 
 export interface SyncAction {
-  id: string; 
+  id: string;
   type: 'CREATE' | 'UPDATE' | 'DELETE';
-  table: 'trips' | 'travelDetails' | 'places' | 'hotels' | 'idProofs';
+  table: 'trips' | 'travelDetails' | 'places' | 'hotels' | 'idProofs' | 'expenses';
   payload: any;
   timestamp: number;
 }
@@ -61,6 +85,7 @@ interface TripPlannerDB extends DBSchema {
   places: { key: string; value: Place; indexes: { 'by-trip': string } };
   hotels: { key: string; value: Hotel; indexes: { 'by-trip': string } };
   idProofs: { key: string; value: IdProof; indexes: { 'by-trip': string } };
+  expenses: { key: string; value: Expense; indexes: { 'by-trip': string } };
   syncQueue: { key: string; value: SyncAction };
 }
 
@@ -70,8 +95,8 @@ export const getDB = () => {
   if (typeof window === 'undefined') return null; // SSR safety
   
   if (!dbPromise) {
-    dbPromise = openDB<TripPlannerDB>('trip-planner-db', 1, {
-      upgrade(db) {
+    dbPromise = openDB<TripPlannerDB>('trip-planner-db', 2, {
+      upgrade(db, oldVersion, newVersion) {
         if (!db.objectStoreNames.contains('trips')) {
           const tripStore = db.createObjectStore('trips', { keyPath: 'id' });
           tripStore.createIndex('by-user', 'createdBy');
@@ -91,6 +116,10 @@ export const getDB = () => {
         if (!db.objectStoreNames.contains('idProofs')) {
           const proofsStore = db.createObjectStore('idProofs', { keyPath: 'id' });
           proofsStore.createIndex('by-trip', 'tripId');
+        }
+        if (oldVersion < 2 && !db.objectStoreNames.contains('expenses')) {
+          const expensesStore = db.createObjectStore('expenses', { keyPath: 'id' });
+          expensesStore.createIndex('by-trip', 'tripId');
         }
         if (!db.objectStoreNames.contains('syncQueue')) {
           db.createObjectStore('syncQueue', { keyPath: 'id' });

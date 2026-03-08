@@ -45,6 +45,7 @@ export function useTrips() {
               for (const p of data.places) await db.put("places", p);
               for (const h of data.hotels) await db.put("hotels", h);
               for (const i of data.idProofs) await db.put("idProofs", i);
+              for (const e of data.expenses) await db.put("expenses", e);
               localTrips = data.trips;
             }
           } catch {

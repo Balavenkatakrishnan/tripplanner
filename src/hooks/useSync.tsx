@@ -56,10 +56,12 @@ export async function runSync(user: { role: string | null; username?: string; ph
       const pls = await db.getAllFromIndex("places", "by-trip", tripId);
       const hts = await db.getAllFromIndex("hotels", "by-trip", tripId);
       const ids = await db.getAllFromIndex("idProofs", "by-trip", tripId);
+      const exps = await db.getAllFromIndex("expenses", "by-trip", tripId);
       for (const td of tds) await db.delete("travelDetails", td.id);
       for (const p of pls) await db.delete("places", p.id);
       for (const h of hts) await db.delete("hotels", h.id);
       for (const i of ids) await db.delete("idProofs", i.id);
+      for (const e of exps) await db.delete("expenses", e.id);
       await db.delete("trips", tripId);
     }
 
@@ -69,6 +71,7 @@ export async function runSync(user: { role: string | null; username?: string; ph
     for (const p of data.places) await db.put("places", p);
     for (const h of data.hotels) await db.put("hotels", h);
     for (const i of data.idProofs) await db.put("idProofs", i);
+    for (const e of data.expenses) await db.put("expenses", e);
 
     // 6. Notify listeners to refresh
     if (typeof window !== "undefined") {
